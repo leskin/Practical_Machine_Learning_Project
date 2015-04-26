@@ -2,7 +2,7 @@
 
 This repository is for the course project for the Coursera Practical Machine Learning Course.  The purpose of the project is to perform qualitative activity recognition of weight lifting exercises.  It uses data acquired from accelerometers mouted on the belt, forearm, arm and dumbell of six participants in a program conducted by Velloso (2013).  The program participants were asked to perform barbell lifts both correctly and incorrectly in five different ways.  Details of the program may be found in the Weight Lifting Exercise Dataset section of the following website: http://groupware.les.inf.puc-rio.br/har
 
-The goal of the project is to predict the manner in which the participants did the exercise.
+The goal of the project is to predict the manner in which the participants did the exercise for 20 test records.
 
 
 #### References
