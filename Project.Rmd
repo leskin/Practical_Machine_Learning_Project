@@ -1,0 +1,240 @@
+---
+title: "Practical Machine Learning Course Project"
+author: "Leo Eskin"
+date: "April 7, 2015"
+output: 
+  html_document:
+    pandoc_args: [
+      "+RTS", "-K64m",
+      "-RTS"
+    ]
+
+---
+
+#### Introduction
+
+This project performs qualitative activity recognition of weight lifting exercises.  It uses data acquired from accelerometers mouted on the belt, forearm, arm and dumbell of six participants in a program conducted by Velloso (2013).  The program participants were asked to perform barbell lifts both correctly and incorrectly in five different ways.  Details of the program may be found in the Weight Lifting Exercise Dataset section of the following website: http://groupware.les.inf.puc-rio.br/har
+
+The goal of the project is to predict the manner in which the participants did the exercise.  The training data for this course project were downloaded from the following URL: 
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The "classe" variable in the training dataset indicates which of the five (correct or incorrect) methods of barbell lift was used for each sample record.  
+
+As described in the following sections, a prediction model was developed to predict the method of barbell lift that was used for 20 different test cases.  The test data were downloaded from the following URL: 
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+#### Prediction Model Development
+
+First, we download, read in, and save the training and testing raw datasets (as CSV files) and then save the raw data as separate RDA files.  To ensure proper handling of invalid (NA) data values, we define any data value as NA that is read in with a blank value, #DIV/0! value or NA value.  This is done with the na.strings=c("NA","#DIV/0!"," ") option in the read.csv() commands below.
+
+```{r loadData,cache=TRUE}
+# the download routine requires that a directory structure with a
+# data subdirectory two levels up
+# first must set the working directory to the code directory 
+setwd("~/Online_Learning/Coursera/Practical_Machine_Learning_0415/Course_Project/Code/rawcode")
+# and set the rda filenames for the training and test datasets
+rdaTrainFilename <- "../../data/pmlTrainingData.rda"
+rdaTestFilename <- "../../data/pmlTestingData.rda"
+# we only download the file if we have not already done so and created an rda file
+if (!file.exists(rdaTrainFilename)) {
+  # first read and save the raw data
+  fileURL <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+  download.file(fileURL, destfile="../../data/pml-training.csv",method="curl")
+  dateDownloaded <- date()
+  dateDownloaded
+  # import training data as csv file and save as an rda file
+  pmlTrainingData <- read.csv('../../data/pml-training.csv',na.strings=c("NA","#DIV/0!"," "))
+  save(pmlTrainingData, dateDownloaded, file=rdaTrainFilename)
+}
+if (!file.exists(rdaTestFilename)) {
+  # first read and save the raw data
+  fileURL <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+  download.file(fileURL, destfile="../../data/pml-testing.csv",method="curl")
+  dateDownloaded <- date()
+  dateDownloaded
+  # import training data as csv file and save as an rda file
+  pmlTestingData <- read.csv('../../data/pml-testing.csv',na.strings=c("NA","#DIV/0!"," "))
+  save(pmlTestingData, dateDownloaded, file=rdaTestFilename)
+}
+```
+
+```{r, dependson="loadData", cache=FALSE}
+load(rdaTrainFilename)
+load(rdaTestFilename)
+```
+
+Once we have the raw data in memory, we use the CARET package to divide the testing data into two datasets.  The first of these will be used to train the prediction algorithm and the second will be used to perform cross-validation testing of the model to estimate the out of sample error.  The testing dataset contains 14,718 records, the cross-validation dataset contains 4,904 records and the test dataset contains 20 records.
+
+```{r}
+library(caret)
+inTrain <- createDataPartition(y=pmlTrainingData$classe,
+                              p=0.75, list=FALSE)
+trainingSet <- pmlTrainingData[inTrain,]
+crossValidationSet <- pmlTrainingData[-inTrain,]
+testingSet <- pmlTestingData
+dim(trainingSet)
+dim(crossValidationSet)
+dim(testingSet)
+```
+
+#### Data Preprocessing
+
+Before performing any model development, we manually inspect the dataset to ensure the data is in tidy format (with one record per row and one variable per column).  We also look at the variable definitions and type to see if any variables are clearly unnecessary for the model.
+
+```{r, dependson="loadData"}
+names(pmlTrainingData)
+table(pmlTrainingData$classe)
+#head(pmlTrainingData)[1:10]
+#summary(pmlTrainingData)
+#sapply(pmlTrainingData[1,],class)
+```
+
+Based on the column review, we leave out the first seven columns as unnecessary (1=X, 2=user_name, 3=raw_timestamp_part_1, 4=raw_timestamp_part_2, 5=cvtd_timestamp, 6=new_window, 7=num_window)
+
+```{r}
+preTrainingSet <- trainingSet[,-c(1,2,3,4,5,6,7)]
+preCrossValidationSet <- crossValidationSet[,-c(1,2,3,4,5,6,7)]
+preTestingSet <- testingSet[,-c(1,2,3,4,5,6,7)]
+```
+
+To minimize excessive noise and computation time, we look for near zero covariates
+
+```{r}
+nearZeroVar(preTrainingSet, saveMetrics=TRUE)
+nzv <- nearZeroVar(preTrainingSet, saveMetrics=FALSE)
+nzv
+```
+
+and we remove them from the preprocessed datasets.
+
+```{r}
+preTrainingSet <- preTrainingSet[,-nzv]
+preCrossValidationSet <- preCrossValidationSet[,-nzv]
+preTestingSet <- preTestingSet[,-nzv]
+```
+
+We also identify missing values and remove columnns with any NA values, as they will cause errrs for the model.
+
+```{r, dependson="loadData"}
+naColumns <- sapply(preTrainingSet, function(x) any(is.na(x)))
+preTrainingSet <- preTrainingSet[,!naColumns]
+preCrossValidationSet <- preCrossValidationSet[,!naColumns]
+preTestingSet <- preTestingSet[,!naColumns]
+```
+
+A quick review of the preprocessed data shows that it is much smaller and simpler than the original data and will be easier to model.
+
+```{r, dependson="loadData"}
+names(preTrainingSet)
+names(preTestingSet)
+#table(preTrainingSet)
+head(preTrainingSet)[1:10]
+summary(preTrainingSet)
+sapply(preTrainingSet[1,],class)
+sapply(preTestingSet[1,],class)
+```
+
+
+#### Model Development
+
+The overall approach used was to create an odd number of independent models and then to use a voting method for the final prediction for each test record.
+
+#### Classification and Regression Tree Model
+
+We begin by creating a Classification and Regression Tree (CART) Model with the training dataset, using the "rpart" method in the CARET package.  Performing a prediction with the cross-validation dataset, the confusion matrix indicates an accuracy of 48.98%, so a 51.02% out of sample error is expected.
+
+```{r tree, cache=TRUE}
+library(caret)
+set.seed(12345)
+
+# tree model fit
+treeFit <- train(preTrainingSet$classe ~ .,method="rpart",data=preTrainingSet)
+print(treeFit$finalModel)
+#library(rattle)
+#fancyRpartPlot(treeFit$finalModel)
+treePrediction <- predict(treeFit,preCrossValidationSet)
+confusionMatrix(preCrossValidationSet$classe, treePrediction)
+treeTestPred <- predict(treeFit, preTestingSet)
+```
+#### Random Forest Model
+
+The second model created was a Random Forest model, fit using the "rf" method in the CARET package.  Performing a prediction with the cross-validation dataset, the confusion matrix indicates an accuracy of 99.12%, so a very small 0.88% out of sample error is expected.
+
+```{r randomForest, cache=TRUE}
+# random forest model fit
+rfFit <- train(preTrainingSet$classe ~ .,data=preTrainingSet,method="rf",prox=TRUE)
+rfPrediction <- predict(rfFit, preCrossValidationSet)
+confusionMatrix(preCrossValidationSet$classe, rfPrediction)
+rfTestPred <- predict(rfFit, preTestingSet)
+```
+
+#### Stochastic Gradient Boosting Model
+
+The third (and last) model created was a Stochastic Gradient Boosting model, fit using the "gbm" method in the CARET package.  Performing a prediction with the cross-validation dataset, the confusion matrix indicates an accuracy of 95.86%, so a 4.14% out of sample error is expected.
+
+```{r boosting, cache=TRUE}
+# boosting model fit
+boostingFit <- train(preTrainingSet$classe ~ .,data=preTrainingSet,method="gbm",verbose=FALSE)
+print(boostingFit)
+boostingPrediction <- predict(boostingFit, preCrossValidationSet)
+confusionMatrix(preCrossValidationSet$classe, boostingPrediction)
+boostingTestPred <- predict(boostingFit, preTestingSet)
+```
+#### Combined Predictors
+
+The predictions for the cross-validation dataset for the three models above were combined into a dataset.  A voting function was developed to select an overall prediction that was based on the predictions from the tree models.  Each model was given one vote, and for each sample, whichever model received the largest number of votes won the vote and that answer was selected as the prediction for that sample.
+
+For the combined model, performing a prediction with the cross-validation dataset, the confusion matrix indicates an accuracy of 96.25%, so a 3.75% out of sample error is expected.
+
+```{r combinedPredictors, cache=TRUE}
+# fit a model that combines predictors
+
+vote <- function(df) {
+  result <- c(rep("", times = nrow(df)))
+  for (row in 1:nrow(df)) {
+    aCount <- 0
+    bCount <- 0
+    cCount <- 0
+    dCount <- 0
+    eCount <- 0
+    for (col in 1:ncol(df)) {
+      pred <- df[row,col]
+      if (pred == "A") aCount <- aCount + 1
+      else if (pred == "B") bCount <- bCount + 1
+      else if (pred == "C") cCount <- cCount + 1
+      else if (pred == "D") dCount <- dCount + 1
+      else if (pred == "E") eCount <- eCount + 1
+    }
+    maxCount <- max(aCount, bCount, cCount, dCount, eCount)
+    if (maxCount == aCount) result[row] <-"A"
+    else if (maxCount == bCount) result[row] <-"B"
+    else if (maxCount == cCount) result[row] <-"C"
+    else if (maxCount == dCount) result[row] <-"D"
+    else if (maxCount == eCount) result[row] <-"E"
+  }
+  return(result)
+}
+
+
+cvPredDF <- data.frame(rfPrediction, boostingPrediction, treePrediction)
+cvCombPred <- vote(cvPredDF)
+
+confusionMatrix(preCrossValidationSet$classe, cvCombPred)
+```
+
+#### Results: Test Dataset Predictions
+
+The combined model was used to make predictions for the 20 sample records contined in the test dataset.  The predicted values were submitted for the project and all 20 predictions were correct, which is consistent with the expected out of sample error rate (for which less than 1 in 20 errors would be expected).
+
+```{r}
+testPredDF <- data.frame(rfTestPred, boostingTestPred, treeTestPred)
+testRecordPredictions <- vote(testPredDF)
+testRecordPredictions
+```
+
+
+#### References
+
+Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. Qualitative Activity Recognition of Weight Lifting Exercises. Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human '13) . Stuttgart, Germany: ACM SIGCHI, 2013. Downloaded on 4/20/15 at 10:30 AM from http://groupware.les.inf.puc-rio.br/public/papers/2013.Velloso.QAR-WLE.pdf.
