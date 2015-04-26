@@ -86,8 +86,6 @@ Before performing any model development, we manually inspect the dataset to ensu
 ```{r, dependson="loadData"}
 names(pmlTrainingData)
 table(pmlTrainingData$classe)
-##table(pmlTrainingData$X)
-#table(pmlTrainingData$user_name)
 #head(pmlTrainingData)[1:10]
 #summary(pmlTrainingData)
 #sapply(pmlTrainingData[1,],class)
@@ -99,8 +97,6 @@ Based on the column review, we leave out the first seven columns as unnecessary 
 preTrainingSet <- trainingSet[,-c(1,2,3,4,5,6,7)]
 preCrossValidationSet <- crossValidationSet[,-c(1,2,3,4,5,6,7)]
 preTestingSet <- testingSet[,-c(1,2,3,4,5,6,7)]
-#preTrainingSet <- trainingSet[,-c(1,2,3,4,5)]
-#preCrossValidationSet <- crossValidationSet[,-c(1,2,3,4,5)]
 ```
 
 To minimize excessive noise and computation time, we look for near zero covariates
@@ -126,14 +122,6 @@ naColumns <- sapply(preTrainingSet, function(x) any(is.na(x)))
 preTrainingSet <- preTrainingSet[,!naColumns]
 preCrossValidationSet <- preCrossValidationSet[,!naColumns]
 preTestingSet <- preTestingSet[,!naColumns]
-#sum(is.na(preTrainingSet))
-#badTrainRecords <- preTrainingSet[!complete.cases(preTrainingSet),]
-#dim(badTrainRecords)
-#preTrainingSet <- preTrainingSet[complete.cases(preTrainingSet),]
-##head(badRecords)
-#preCrossValidationSet <- preCrossValidationSet[complete.cases(preCrossValidationSet),]
-#badTestRecords <- preTestingSet[!complete.cases(preTestingSet),]
-#dim(badTestRecords)
 ```
 
 A quick review of the preprocessed data shows that it is much smaller and simpler than the original data and will be easier to model.
@@ -142,14 +130,10 @@ A quick review of the preprocessed data shows that it is much smaller and simple
 names(preTrainingSet)
 names(preTestingSet)
 #table(preTrainingSet)
-#table(preTrainingSet$user_name)
 head(preTrainingSet)[1:10]
 summary(preTrainingSet)
 sapply(preTrainingSet[1,],class)
 sapply(preTestingSet[1,],class)
-#library(Hmisc)
-#describe(preTrainingSet)
-
 ```
 
 
@@ -164,20 +148,8 @@ We begin by creating a Classification and Regression Tree (CART) Model with the 
 ```{r tree, cache=TRUE}
 library(caret)
 set.seed(12345)
-# decided not to do PCA since results are worse
-#preProc <- preProcess(log10(subset(preTrainingSet,select=-c(classe))+1),method="pca",pcaComp=2) 
-#preProc <- preProcess(subset(preTrainingSet,select=-c(classe)),method="pca",pcaComp=7) 
-#trainPC <- predict(preProc, log10(subset(preTrainingSet,select=-c(classe))+1))
-#testPC <- predict(preProc, log10(subset(preCrossValidationSet,select=-c(classe))+1))
-#testPC <- predict(preProc, subset(preCrossValidationSet,select=-c(classe)))
 
 # tree model fit
-# using PCA
-#treePCFit <- train(preTrainingSet$classe ~ .,method="rpart",data=trainPC)
-#treePCPrediction <- predict(treePCFit,testPC)
-#confusionMatrix(preCrossValidationSet$classe, treePCPrediction)
-
-# without PCA
 treeFit <- train(preTrainingSet$classe ~ .,method="rpart",data=preTrainingSet)
 print(treeFit$finalModel)
 #library(rattle)
