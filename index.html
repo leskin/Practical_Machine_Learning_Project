@@ -213,17 +213,13 @@ dim(trainingSet)</code></pre>
 <pre><code>## 
 ##    A    B    C    D    E 
 ## 5580 3797 3422 3216 3607</code></pre>
-<pre class="r"><code>##table(pmlTrainingData$X)
-#table(pmlTrainingData$user_name)
-#head(pmlTrainingData)[1:10]
+<pre class="r"><code>#head(pmlTrainingData)[1:10]
 #summary(pmlTrainingData)
 #sapply(pmlTrainingData[1,],class)</code></pre>
 <p>Based on the column review, we leave out the first seven columns as unnecessary (1=X, 2=user_name, 3=raw_timestamp_part_1, 4=raw_timestamp_part_2, 5=cvtd_timestamp, 6=new_window, 7=num_window)</p>
 <pre class="r"><code>preTrainingSet &lt;- trainingSet[,-c(1,2,3,4,5,6,7)]
 preCrossValidationSet &lt;- crossValidationSet[,-c(1,2,3,4,5,6,7)]
-preTestingSet &lt;- testingSet[,-c(1,2,3,4,5,6,7)]
-#preTrainingSet &lt;- trainingSet[,-c(1,2,3,4,5)]
-#preCrossValidationSet &lt;- crossValidationSet[,-c(1,2,3,4,5)]</code></pre>
+preTestingSet &lt;- testingSet[,-c(1,2,3,4,5,6,7)]</code></pre>
 <p>To minimize excessive noise and computation time, we look for near zero covariates</p>
 <pre class="r"><code>nearZeroVar(preTrainingSet, saveMetrics=TRUE)</code></pre>
 <pre><code>##                          freqRatio percentUnique zeroVar   nzv
@@ -392,15 +388,7 @@ preTestingSet &lt;- preTestingSet[,-nzv]</code></pre>
 <pre class="r"><code>naColumns &lt;- sapply(preTrainingSet, function(x) any(is.na(x)))
 preTrainingSet &lt;- preTrainingSet[,!naColumns]
 preCrossValidationSet &lt;- preCrossValidationSet[,!naColumns]
-preTestingSet &lt;- preTestingSet[,!naColumns]
-#sum(is.na(preTrainingSet))
-#badTrainRecords &lt;- preTrainingSet[!complete.cases(preTrainingSet),]
-#dim(badTrainRecords)
-#preTrainingSet &lt;- preTrainingSet[complete.cases(preTrainingSet),]
-##head(badRecords)
-#preCrossValidationSet &lt;- preCrossValidationSet[complete.cases(preCrossValidationSet),]
-#badTestRecords &lt;- preTestingSet[!complete.cases(preTestingSet),]
-#dim(badTestRecords)</code></pre>
+preTestingSet &lt;- preTestingSet[,!naColumns]</code></pre>
 <p>A quick review of the preprocessed data shows that it is much smaller and simpler than the original data and will be easier to model.</p>
 <pre class="r"><code>names(preTrainingSet)</code></pre>
 <pre><code>##  [1] &quot;roll_belt&quot;            &quot;pitch_belt&quot;           &quot;yaw_belt&quot;            
@@ -441,7 +429,6 @@ preTestingSet &lt;- preTestingSet[,!naColumns]
 ## [49] &quot;accel_forearm_z&quot;      &quot;magnet_forearm_x&quot;     &quot;magnet_forearm_y&quot;    
 ## [52] &quot;magnet_forearm_z&quot;     &quot;problem_id&quot;</code></pre>
 <pre class="r"><code>#table(preTrainingSet)
-#table(preTrainingSet$user_name)
 head(preTrainingSet)[1:10]</code></pre>
 <pre><code>##   roll_belt pitch_belt yaw_belt total_accel_belt gyros_belt_x gyros_belt_y
 ## 1      1.41       8.07    -94.4                3         0.00         0.00
@@ -637,8 +624,6 @@ head(preTrainingSet)[1:10]</code></pre>
 ##            &quot;integer&quot;            &quot;integer&quot;            &quot;integer&quot; 
 ##     magnet_forearm_z           problem_id 
 ##            &quot;integer&quot;            &quot;integer&quot;</code></pre>
-<pre class="r"><code>#library(Hmisc)
-#describe(preTrainingSet)</code></pre>
 </div>
 <div id="model-development" class="section level4">
 <h4>Model Development</h4>
@@ -649,20 +634,8 @@ head(preTrainingSet)[1:10]</code></pre>
 <p>We begin by creating a Classification and Regression Tree (CART) Model with the training dataset, using the “rpart” method in the CARET package. Performing a prediction with the cross-validation dataset, the confusion matrix indicates an accuracy of 48.98%, so a 51.02% out of sample error is expected.</p>
 <pre class="r"><code>library(caret)
 set.seed(12345)
-# decided not to do PCA since results are worse
-#preProc &lt;- preProcess(log10(subset(preTrainingSet,select=-c(classe))+1),method=&quot;pca&quot;,pcaComp=2) 
-#preProc &lt;- preProcess(subset(preTrainingSet,select=-c(classe)),method=&quot;pca&quot;,pcaComp=7) 
-#trainPC &lt;- predict(preProc, log10(subset(preTrainingSet,select=-c(classe))+1))
-#testPC &lt;- predict(preProc, log10(subset(preCrossValidationSet,select=-c(classe))+1))
-#testPC &lt;- predict(preProc, subset(preCrossValidationSet,select=-c(classe)))
 
 # tree model fit
-# using PCA
-#treePCFit &lt;- train(preTrainingSet$classe ~ .,method=&quot;rpart&quot;,data=trainPC)
-#treePCPrediction &lt;- predict(treePCFit,testPC)
-#confusionMatrix(preCrossValidationSet$classe, treePCPrediction)
-
-# without PCA
 treeFit &lt;- train(preTrainingSet$classe ~ .,method=&quot;rpart&quot;,data=preTrainingSet)
 print(treeFit$finalModel)</code></pre>
 <pre><code>## n= 14718 
