@@ -4,6 +4,10 @@ This repository is for the course project for the Coursera Practical Machine Lea
 
 The goal of the project is to predict the manner in which the participants did the exercise for 20 test records.
 
+NOTE: The precompiled html file for this project may be viewed online at the following URL:
+
+http://leskin.github.io/Practical_Machine_Learning_Project/
+
 
 #### References
 

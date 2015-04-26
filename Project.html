@@ -390,6 +390,7 @@ preTrainingSet &lt;- preTrainingSet[,!naColumns]
 preCrossValidationSet &lt;- preCrossValidationSet[,!naColumns]
 preTestingSet &lt;- preTestingSet[,!naColumns]</code></pre>
 <p>A quick review of the preprocessed data shows that it is much smaller and simpler than the original data and will be easier to model.</p>
+<p>Note that the same preprocessing was done for all datasets (training, cross-validation and test).</p>
 <pre class="r"><code>names(preTrainingSet)</code></pre>
 <pre><code>##  [1] &quot;roll_belt&quot;            &quot;pitch_belt&quot;           &quot;yaw_belt&quot;            
 ##  [4] &quot;total_accel_belt&quot;     &quot;gyros_belt_x&quot;         &quot;gyros_belt_y&quot;        
@@ -627,32 +628,17 @@ head(preTrainingSet)[1:10]</code></pre>
 </div>
 <div id="model-development" class="section level4">
 <h4>Model Development</h4>
-<p>The overall approach used was to create an odd number of independent models and then to use a voting method for the final prediction for each test record.</p>
+<p>The overall approach used was to create an odd number of independent models and then to use a voting method for the final prediction for each test record. For this project, three independent models were created as described below.</p>
 </div>
 <div id="classification-and-regression-tree-model" class="section level4">
 <h4>Classification and Regression Tree Model</h4>
 <p>We begin by creating a Classification and Regression Tree (CART) Model with the training dataset, using the “rpart” method in the CARET package. Performing a prediction with the cross-validation dataset, the confusion matrix indicates an accuracy of 48.98%, so a 51.02% out of sample error is expected.</p>
 <pre class="r"><code>library(caret)
 set.seed(12345)
-
 # tree model fit
 treeFit &lt;- train(preTrainingSet$classe ~ .,method=&quot;rpart&quot;,data=preTrainingSet)
-print(treeFit$finalModel)</code></pre>
-<pre><code>## n= 14718 
-## 
-## node), split, n, loss, yval, (yprob)
-##       * denotes terminal node
-## 
-##  1) root 14718 10533 A (0.28 0.19 0.17 0.16 0.18)  
-##    2) roll_belt&lt; 130.5 13491  9317 A (0.31 0.21 0.19 0.18 0.11)  
-##      4) pitch_forearm&lt; -33.15 1175    12 A (0.99 0.01 0 0 0) *
-##      5) pitch_forearm&gt;=-33.15 12316  9305 A (0.24 0.23 0.21 0.2 0.12)  
-##       10) magnet_dumbbell_y&lt; 439.5 10392  7441 A (0.28 0.18 0.24 0.19 0.11)  
-##         20) roll_forearm&lt; 123.5 6457  3817 A (0.41 0.18 0.18 0.17 0.059) *
-##         21) roll_forearm&gt;=123.5 3935  2617 C (0.079 0.17 0.33 0.23 0.19) *
-##       11) magnet_dumbbell_y&gt;=439.5 1924   934 B (0.031 0.51 0.042 0.22 0.19) *
-##    3) roll_belt&gt;=130.5 1227    11 E (0.009 0 0 0 0.99) *</code></pre>
-<pre class="r"><code>#library(rattle)
+#print(treeFit$finalModel)
+#library(rattle)
 #fancyRpartPlot(treeFit$finalModel)
 treePrediction &lt;- predict(treeFit,preCrossValidationSet)
 confusionMatrix(preCrossValidationSet$classe, treePrediction)</code></pre>
@@ -810,9 +796,9 @@ confusionMatrix(preCrossValidationSet$classe, boostingPrediction)</code></pre>
 </div>
 <div id="combined-predictors" class="section level4">
 <h4>Combined Predictors</h4>
-<p>The predictions for the cross-validation dataset for the three models above were combined into a dataset. A voting function was developed to select an overall prediction that was based on the predictions from the tree models. Each model was given one vote, and for each sample, whichever model received the largest number of votes won the vote and that answer was selected as the prediction for that sample.</p>
-<p>For the combined model, performing a prediction with the cross-validation dataset, the confusion matrix indicates an accuracy of 96.25%, so a 3.75% out of sample error is expected.</p>
-<pre class="r"><code># fit a model that combines predictors
+<p>The predictions for the cross-validation dataset for the three models above were combined into a data frame. A voting function was developed to select an overall prediction that was based on the predictions from the tree models. Each model was given one vote, and for each sample, whichever model received the largest number of votes won the vote and that answer was selected as the prediction for that sample.</p>
+<p>For the combined model, after performing the voting on the cross-validation predictions, the confusion matrix indicates an accuracy of 96.25%, so a 3.75% out of sample error is expected for the voted results.</p>
+<pre class="r"><code># vote the prediction results from the separate models to create the final prediction
 
 vote &lt;- function(df) {
   result &lt;- c(rep(&quot;&quot;, times = nrow(df)))
@@ -840,10 +826,8 @@ vote &lt;- function(df) {
   return(result)
 }
 
-
 cvPredDF &lt;- data.frame(rfPrediction, boostingPrediction, treePrediction)
 cvCombPred &lt;- vote(cvPredDF)
-
 confusionMatrix(preCrossValidationSet$classe, cvCombPred)</code></pre>
 <pre><code>## Confusion Matrix and Statistics
 ## 
@@ -879,7 +863,7 @@ confusionMatrix(preCrossValidationSet$classe, cvCombPred)</code></pre>
 </div>
 <div id="results-test-dataset-predictions" class="section level4">
 <h4>Results: Test Dataset Predictions</h4>
-<p>The combined model was used to make predictions for the 20 sample records contined in the test dataset. The predicted values were submitted for the project and all 20 predictions were correct, which is consistent with the expected out of sample error rate (for which less than 1 in 20 errors would be expected).</p>
+<p>The combined model was used to make predictions for the 20 sample records contined in the test dataset. The predicted values of the voted results are presented below and were submitted for the project. All 20 predictions for the test dataset were correct, which is consistent with the expected out of sample error rate of 3.75% (for which less than 1 in 20 errors would be expected).</p>
 <pre class="r"><code>testPredDF &lt;- data.frame(rfTestPred, boostingTestPred, treeTestPred)
 testRecordPredictions &lt;- vote(testPredDF)
 testRecordPredictions</code></pre>
